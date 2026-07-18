@@ -45,7 +45,7 @@
         .chat-msg { padding: 12px 16px; border-radius: 15px; max-width: 80%; line-height: 1.5; font-size: 15px; word-break: keep-all; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .msg-user { background: #EEF2FF; color: #1F2937; align-self: flex-end; border-bottom-right-radius: 4px; }
         .msg-ai { background: #10B981; color: white; align-self: flex-start; border-bottom-left-radius: 4px; }
-        .msg-error { background: #FEE2E2; color: #991B1B; align-self: center; font-size: 13px; text-align: center; }
+        .msg-error { background: #FEE2E2; color: #991B1B; align-self: center; font-size: 13px; text-align: center; border-radius: 8px; }
         .status-bar { margin-top: 15px; padding: 12px; border-radius: 8px; background-color: #EEF2FF; color: var(--primary); text-align: center; font-weight: 600; display: none; }
         
         @keyframes pulseBg { 0% { background-color: var(--danger); } 50% { background-color: #B91C1C; transform: scale(0.98); } 100% { background-color: var(--danger); } }
@@ -122,7 +122,7 @@
         <div id="panel-translate" style="display: none;">
             <div style="background: #ECFDF5; padding: 12px; border-radius: 8px; border: 1px solid #A7F3D0; text-align: center; color: #065F46; font-weight: bold; margin-bottom: 15px;">
                 🚀 제미나이가 내 목소리를 직접 듣고 이해합니다!<br>
-                <span style="font-size: 13px; font-weight: normal; color: #047857;">[말하기 시작] ➔ 편하게 말하기 ➔ [말하기 완료] 누르기</span>
+                <span style="font-size: 13px; font-weight: normal; color: #047857;">💡 팁: 말을 다 마치고 <strong>마음속으로 1초 센 뒤에</strong> 완료를 누르세요.</span>
             </div>
             
             <div class="chat-box" id="chat-box"></div>
@@ -246,7 +246,6 @@
     let isStudyStopped = false;
     
     async function generateMultipleText(apiKey, topic, count) {
-        // 학습(텍스트) 기능은 최신 2.5 유지
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const prompt = `주제: "${topic}"\n이 상황에 쓰이는 자연스러운 실생활 영어 표현 ${count}개 생성. 양식: [{"en": "영어", "ko": "한국어"}]`;
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) });
@@ -318,7 +317,7 @@
         updateStatus("정지됨");
     }
 
-    // ================= 🚀 직통 오디오 통역기 로직 =================
+    // ================= 🚀 방탄 필터가 적용된 직통 오디오 통역기 =================
     let mediaRecorder;
     let audioChunks = [];
 
@@ -375,14 +374,14 @@
                     const audioBlob = new Blob(audioChunks, { type: mimeType });
                     const base64Audio = await blobToBase64(audioBlob);
                     
-                    const prompt = `이 오디오는 사용자의 실제 음성입니다. 다음 지시사항을 완벽히 수행하세요.
-                    1. 사용자의 음성을 듣고, 더듬거리거나 실수한 부분을 문맥에 맞게 교정하여 원래 의도한 문장으로 받아쓰기 하세요.
-                    2. 음성이 주로 한국어라면 영어로 번역하고, 주로 영어라면 한국어로 번역하세요.
-                    3. 만약 의미 없는 소음만 들리거나 목소리가 너무 작아 인식할 수 없다면, original에 "목소리를 명확히 듣지 못했습니다."라고 적어주세요.
-                    4. 결과는 반드시 아래 JSON 형식으로만 출력하세요.
+                    // 💡 제미나이의 융통성을 끌어올리는 아주 강력한 프롬프트(명령)
+                    const prompt = `이 오디오는 사용자의 실제 음성입니다. 다음 지시사항을 무조건 따르세요.
+                    1. 음성이 중간에 끊겨서 "안녕하세요 어디로가" 처럼 들리더라도, 문맥을 유추하여 "안녕하세요 어디로 가십니까?" 등 완전한 문장으로 똑똑하게 교정하세요.
+                    2. 음성이 한국어면 영어로 번역하고, 영어면 한국어로 번역하세요.
+                    3. 만약 음성이 너무 짧거나 잡음만 들려서 도저히 번역할 수 없다면, original에 "말씀이 잘 안 들렸어요."라고 적어주세요.
+                    4. 어떤 상황에서도(에러가 나든 잡음이 들리든) 무조건 아래 JSON 형식만 출력해야 합니다.
                     양식: {"original": "교정된 원래 문장", "translated_text": "최종 번역 문장", "target_lang": "en" 또는 "ko"}`;
 
-                    // 💡 [개선점 1] 안정적인 오디오 처리를 위해 gemini-1.5-flash 모델로 변경
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -395,19 +394,25 @@
                     const data = await response.json();
                     
                     if (!response.ok) {
-                        throw new Error(data.error?.message || "서버 응답 오류 (API 요청 한도 초과 등)");
+                        throw new Error("서버에서 응답을 거절했습니다.");
                     }
 
-                    const textRes = data.candidates[0].content.parts[0].text;
-                    let result;
+                    // 💡 AI가 너무 짧은 음성에 당황해서 대답을 거부(Safety Block)했을 때의 안전장치
+                    let textRes = "";
+                    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                        textRes = data.candidates[0].content.parts[0].text;
+                    } else {
+                        textRes = '{"original": "말씀이 너무 짧게 녹음되었습니다.", "translated_text": "The audio was too short. Please try again.", "target_lang": "en"}';
+                    }
 
+                    let result;
                     try {
                         result = cleanJsonResponse(textRes);
                     } catch(parseError) {
-                        // 💡 [개선점 2] 제미나이가 룰을 어기고 텍스트로 답했을 때(주로 안 들릴 때) 강제 에러 방지
+                        // 만약 AI가 JSON 양식을 어겼을 때의 최후의 보루
                         result = {
-                            original: "소음만 들렸거나 목소리를 명확히 듣지 못했습니다.",
-                            translated_text: "I couldn't hear you clearly. Please try again.",
+                            original: "녹음이 비정상적으로 끊겼습니다.",
+                            translated_text: "Audio was cut off unexpectedly.",
                             target_lang: "en"
                         };
                     }
@@ -423,9 +428,8 @@
 
                 } catch(error) {
                     console.error(error);
-                    // 💡 [개선점 3] 정확한 에러 원인 화면 출력
-                    addChatMessage(`⚠️ 에러 원인: ${error.message}<br>(다시 시도해 보시고, 계속되면 저에게 알려주세요!)`, 'error');
-                    updateStatus('⚠️ 통역 중 오류가 발생했습니다.');
+                    addChatMessage(`⚠️ 에러가 났지만 안전하게 복구했습니다. 다시 말씀해 보세요!`, 'error');
+                    updateStatus('⚠️ 잠시 통신이 불안정했습니다.');
                 } finally {
                     document.getElementById('btn-record-start').disabled = false;
                     document.getElementById('btn-record-stop').disabled = true;
@@ -437,7 +441,7 @@
             document.getElementById('btn-record-start').classList.add('recording');
             document.getElementById('btn-record-start').disabled = true;
             document.getElementById('btn-record-stop').disabled = false;
-            updateStatus('🔴 녹음 중... 편하게 말씀하시고 끝나면 [완료]를 누르세요!');
+            updateStatus('🔴 녹음 중... 다 말씀하시고 속으로 1초 센 뒤 완료를 누르세요!');
             
         } catch(error) {
             alert("마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해주세요.");
