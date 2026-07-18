@@ -73,21 +73,37 @@
         .tile-container { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: var(--card-height); }
 
         /* Cards & 7-Leaf Clover Design */
-        .card-scene { width: var(--card-width); height: var(--card-height); perspective: 600px; }
+        .card-scene { width: var(--card-width); height: var(--card-height); perspective: 600px; margin-bottom: 10px; }
         .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
         .card.revealed { transform: rotateY(180deg); }
         .card.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
         .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; border-radius: 6px; }
         
         .card-front { background: linear-gradient(135deg, #27ae60, #2ecc71); border: 1px solid #2196F3; flex-direction: column; color: rgba(255,255,255,0.9); }
-        .card-front::after { content: '🍀\A 7'; white-space: pre; text-align: center; font-size: 1.2rem; line-height: 1.2; }
+        .card-front::after { content: '🍀'; text-align: center; font-size: 2rem; line-height: 1.2; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
         .card-front.hint-black { background: linear-gradient(135deg, #111, #333); border-color: #555; }
         .card-front.hint-white { background: linear-gradient(135deg, #eee, #fff); color: #333; border-color: #ccc; }
         
-        .card-back { transform: rotateY(180deg); border: 2px solid #555; }
+        .card-back { transform: rotateY(180deg); border: 2px solid #555; position: relative; }
         .card-back.black { background-color: #1a1a1a; color: #f1f1f1; }
         .card-back.white { background-color: #fdfdfd; color: #1a1a1a; }
         
+        /* 내 타일이 공개되었을 때의 시각적 표시 */
+        .card.is-public .card-back { border: 2px solid #e74c3c; }
+        .card.is-public .card-back::after {
+            content: '공개됨';
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            background: #e74c3c;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: bold;
+            padding: 3px 6px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
         .new-draw { transform: translateY(-15px); box-shadow: 0 10px 20px rgba(39, 174, 96, 0.5); border: 2px solid #27ae60; }
         @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(4px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-6px, 0, 0); } 40%, 60% { transform: translate3d(6px, 0, 0); } }
 
@@ -547,7 +563,8 @@
                     const tCont = document.createElement('div'); tCont.className = 'tile-container';
                     
                     p.tiles.forEach(t => {
-                        const el = createTileUI(t, true); 
+                        // 내 타일을 렌더링할 때 (마지막 인자 isMine=true)
+                        const el = createTileUI(t, true, true); 
                         if (t.id === p.drawnTileId) el.classList.add('new-draw');
                         tCont.appendChild(el);
                     });
@@ -559,7 +576,8 @@
                     const tCont = document.createElement('div'); tCont.className = 'tile-container';
                     
                     p.tiles.forEach(t => {
-                        const el = createTileUI(t, t.isRevealed);
+                        // 상대 타일을 렌더링할 때 (마지막 인자 isMine=false)
+                        const el = createTileUI(t, t.isRevealed, false);
                         if (!p.isOut && !t.isRevealed && isMyTurn) {
                             el.style.cursor = 'pointer';
                             el.onclick = () => {
@@ -583,15 +601,23 @@
             }
         }
 
-        function createTileUI(tile, forceReveal) {
+        function createTileUI(tile, forceReveal, isMine = false) {
             const scene = document.createElement('div'); scene.className = 'card-scene';
             const card = document.createElement('div');
-            card.className = `card ${forceReveal || tile.isRevealed ? 'revealed' : ''}`;
+            
+            // 내 타일이면서 가족들에게 '공개된(틀린)' 타일인 경우 is-public 클래스 추가
+            let classStr = 'card ';
+            if (forceReveal || tile.isRevealed) classStr += 'revealed ';
+            if (isMine && tile.isRevealed) classStr += 'is-public ';
+            card.className = classStr.trim();
+            
             const front = document.createElement('div');
             front.className = `card-face card-front hint-${tile.color}`;
+            
             const back = document.createElement('div');
             back.className = `card-face card-back ${tile.color}`;
             back.innerText = tile.value;
+            
             card.appendChild(front); card.appendChild(back); scene.appendChild(card);
             return scene;
         }
