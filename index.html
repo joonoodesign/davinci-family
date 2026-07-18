@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>다빈치 코드: 패밀리 온라인</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            /* 92x52mm 명함 작업 사이즈 비율 */
+            --card-width: 45px;
+            --card-height: 80px;
+            --primary-color: #2c3e50;
+            --accent-color: #27ae60;
+            --bg-color: #121212;
+            --text-color: #ecf0f1;
+        }
+
+        @media (min-width: 600px) {
+            :root {
+                --card-width: 65px;
+                --card-height: 115px;
+            }
+        }
+
+        * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
+            display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; user-select: none;
+        }
+
+        header {
+            text-align: center; padding: 15px 0; background: linear-gradient(135deg, #1a252f, #2c3e50);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 1.2rem; font-weight: bold; letter-spacing: 2px;
+            border-bottom: 2px solid var(--accent-color); z-index: 10;
+        }
+
+        .screen { display: none; flex: 1; flex-direction: column; align-items: center; width: 100%; padding: 20px; }
+        .screen.active { display: flex; }
+
+        /* Menu & Lobby */
+        .box { background: rgba(255,255,255,0.05); padding: 30px; border-radius: 16px; border: 1px solid #34495e; width: 100%; max-width: 400px; text-align: center; margin-bottom: 20px; }
+        
+        /* Preset Names */
+        .preset-names { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
+        .preset-btn { padding: 10px 15px; background: #34495e; border: 1px solid #7f8c8d; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.1s; flex: 1 1 30%; }
+        .preset-btn:active { transform: scale(0.95); background: var(--accent-color); border-color: var(--accent-color); }
+        .preset-btn.selected { background: var(--accent-color); border-color: var(--accent-color); }
+
+        input { width: 100%; padding: 12px; margin: 5px 0 15px 0; border-radius: 8px; border: none; font-size: 1.1rem; text-align: center; background: #ecf0f1; color: #2c3e50; font-weight: bold; }
+        
+        .btn { padding: 15px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; transition: transform 0.1s; width: 100%; margin: 5px 0; color: white; }
+        .btn-host { background-color: #2980b9; }
+        .btn-join { background-color: #27ae60; }
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { background-color: #7f8c8d; cursor: not-allowed; transform: none; }
+
+        .room-code { font-size: 2.5rem; font-weight: 900; color: #f1c40f; letter-spacing: 5px; margin: 15px 0; }
+        .player-list { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+        .player-item { background: #34495e; padding: 10px 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Game Board */
+        .game-board { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px; margin-bottom: 80px; }
+        .opponent-area { background: rgba(255, 255, 255, 0.05); border: 1px dashed #7f8c8d; padding: 15px; border-radius: 12px; position: relative; }
+        .opponent-area.eliminated { opacity: 0.4; filter: grayscale(100%); }
+        .opponent-area.active-turn { border-color: #f1c40f; background: rgba(241, 196, 15, 0.1); }
+        .my-area { background: rgba(39, 174, 96, 0.1); border: 2px solid var(--accent-color); padding: 20px; border-radius: 12px; box-shadow: 0 0 20px rgba(39, 174, 96, 0.2); }
+        .my-area.active-turn { border-color: #f1c40f; box-shadow: 0 0 20px rgba(241, 196, 15, 0.4); }
+        
+        .area-header { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .tile-container { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: var(--card-height); }
+
+        /* Cards & 7-Leaf Clover Design */
+        .card-scene { width: var(--card-width); height: var(--card-height); perspective: 600px; }
+        .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
+        .card.revealed { transform: rotateY(180deg); }
+        .card.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; border-radius: 6px; }
+        
+        .card-front { background: linear-gradient(135deg, #27ae60, #2ecc71); border: 1px solid #2196F3; flex-direction: column; color: rgba(255,255,255,0.9); }
+        .card-front::after { content: '🍀\A 7'; white-space: pre; text-align: center; font-size: 1.2rem; line-height: 1.2; }
+        .card-front.hint-black { background: linear-gradient(135deg, #111, #333); border-color: #555; }
+        .card-front.hint-white { background: linear-gradient(135deg, #eee, #fff); color: #333; border-color: #ccc; }
+        
+        .card-back { transform: rotateY(180deg); border: 2px solid #555; }
+        .card-back.black { background-color: #1a1a1a; color: #f1f1f1; }
+        .card-back.white { background-color: #fdfdfd; color: #1a1a1a; }
+        
+        .new-draw { transform: translateY(-15px); box-shadow: 0 10px 20px rgba(39, 174, 96, 0.5); border: 2px solid #27ae60; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(4px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-6px, 0, 0); } 40%, 60% { transform: translate3d(6px, 0, 0); } }
+
+        .status-text { text-align: center; font-size: 1.1rem; color: #f1c40f; font-weight: bold; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 8px; }
+        
+        /* Controls */
+        .controls-bar { position: fixed; bottom: 0; width: 100%; background: #1a252f; padding: 15px; display: flex; justify-content: center; gap: 15px; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); z-index: 20; }
+        
+        /* Modals */
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+        .modal-box { background: #2c3e50; padding: 25px; border-radius: 12px; width: 100%; max-width: 320px; border: 1px solid var(--accent-color); text-align: center; }
+        .numpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+        .numpad button { padding: 15px 0; font-size: 1.2rem; background-color: #34495e; border: 1px solid #45b39d; color: white; border-radius: 8px; cursor: pointer; }
+        .numpad button:active { background-color: #45b39d; }
+
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 10px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header>🍀 다빈치 코드 : 온라인 멀티플레이 🍀</header>
+
+    <div id="screen-menu" class="screen active">
+        <div class="box">
+            <h2>환영합니다!</h2>
+            <p style="color: #aaa; margin-bottom: 20px;">내 이름을 선택하거나 입력하세요.<br>(소리를 켜두시면 음성 안내가 나옵니다)</p>
+            
+            <div class="preset-names">
+                <button class="preset-btn" onclick="setPlayerName('아빠', this)">아빠</button>
+                <button class="preset-btn" onclick="setPlayerName('엄마', this)">엄마</button>
+                <button class="preset-btn" onclick="setPlayerName('채원', this)">채원</button>
+                <button class="preset-btn" onclick="setPlayerName('유빈', this)">유빈</button>
+                <button class="preset-btn" onclick="setPlayerName('주누', this)">주누</button>
+            </div>
+            
+            <input type="text" id="player-name" placeholder="직접 입력도 가능합니다" maxlength="8">
+            
+            <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-host" onclick="createRoom()">방 만들기 (방장)</button>
+                <div style="margin: 10px 0; color: #7f8c8d;">- OR -</div>
+                <input type="text" id="join-code" placeholder="입장 코드 4자리 입력" maxlength="4" style="text-transform: uppercase;">
+                <button class="btn btn-join" onclick="joinRoom()">방 참가하기</button>
+            </div>
+            <div id="menu-msg" style="color: #e74c3c; margin-top: 15px; font-weight: bold;"></div>
+        </div>
+    </div>
+
+    <div id="screen-lobby" class="screen">
+        <div class="box">
+            <h2 id="lobby-title">대기실</h2>
+            <p style="color: #aaa;">가족들에게 아래 코드를 알려주세요!</p>
+            <div class="room-code" id="display-room-code">----</div>
+            <div class="player-list" id="lobby-players"></div>
+            <button id="btn-start-game" class="btn btn-join" style="margin-top: 20px; display: none;" onclick="hostStartGame()">게임 시작</button>
+            <div id="lobby-msg" style="margin-top: 15px; color: #f1c40f;">방장의 게임 시작을 기다리는 중...</div>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div class="status-text" id="game-status">...</div>
+        <div id="opponents-container" style="width: 100%; display: flex; flex-direction: column; gap: 15px;"></div>
+        <div id="my-container" style="width: 100%; margin-top: 20px;"></div>
+    </div>
+    
+    <div id="controls" class="controls-bar" style="display: none;">
+        <button id="btn-pass" class="btn" style="background-color: #e67e22; width: auto; padding: 12px 30px; border-radius: 25px;" onclick="sendPassTurn()">턴 마치기</button>
+    </div>
+
+    <div id="guess-modal" class="overlay">
+        <div class="modal-box">
+            <h3 style="margin-top:0; color: #ecf0f1;" id="guess-target-name">타일 추리</h3>
+            <div class="numpad" id="numpad"></div>
+            <button class="btn" style="background: #e74c3c; margin-top: 15px;" onclick="closeModal()">취소</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Name Selection ---
+        function setPlayerName(name, btnElement) {
+            document.getElementById('player-name').value = name;
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('selected'));
+            btnElement.classList.add('selected');
+            playSound('click');
+        }
+
+        // --- TTS Voice Engine ---
+        function speakVoice(text) {
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const msg = new SpeechSynthesisUtterance(text);
+                    msg.lang = 'ko-KR';
+                    msg.rate = 1.2; // 약간 빠르게 설정하여 다급한 느낌 부여
+                    msg.volume = 1.0;
+                    window.speechSynthesis.speak(msg);
+                }
+            } catch(e) {}
+        }
+
+        // --- Web Audio Synthesizer ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                if (type === 'click') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(1200, t + 0.1);
+                    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                    osc.start(t); osc.stop(t + 0.1);
+                } else if (type === 'success') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(523.25, t); osc.frequency.setValueAtTime(659.25, t + 0.1); osc.frequency.setValueAtTime(783.99, t + 0.2);
+                    gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.4);
+                    osc.start(t); osc.stop(t + 0.4);
+                } else if (type === 'fail') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.linearRampToValueAtTime(100, t + 0.3);
+                    gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
+                } else if (type === 'win') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+                        o.type = 'sine'; o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination);
+                        g.gain.setValueAtTime(0, t + i*0.1); g.gain.linearRampToValueAtTime(0.2, t + i*0.1 + 0.05); g.gain.linearRampToValueAtTime(0, t + i*0.1 + 0.3);
+                        o.start(t + i*0.1); o.stop(t + i*0.1 + 0.3);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        // --- Core Variables ---
+        let peer = null;
+        let hostConnection = null;
+        let clientConnections = {}; 
+        
+        let isHost = false;
+        let myId = "";
+        let myName = "";
+        
+        const PEER_PREFIX = 'davinci-junu-';
+        
+        let gameState = {
+            status: 'lobby',
+            players: [],
+            deck: [],
+            currentTurnIndex: 0,
+            msg: "대기 중...",
+            turnStartTime: null,
+            nagged: false
+        };
+        
+        let targetGuess = null;
+
+        // Init Numpad
+        const numpad = document.getElementById('numpad');
+        for (let i = 0; i <= 11; i++) {
+            const btn = document.createElement('button');
+            btn.innerText = i; btn.onclick = () => sendGuess(i); numpad.appendChild(btn);
+        }
+
+        // --- 1. Host Functions ---
+        function createRoom() {
+            myName = document.getElementById('player-name').value.trim();
+            if(!myName) { alert("이름을 입력하거나 선택해주세요."); return; }
+            
+            // 스마트폰의 오디오 및 TTS 권한 잠금 해제 (첫 클릭 시 무음 실행)
+            playSound('click'); 
+            speakVoice(''); 
+
+            isHost = true;
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            myId = PEER_PREFIX + code;
+            
+            document.getElementById('menu-msg').innerHTML = `<div class="loader"></div> 방을 생성하는 중...`;
+            peer = new Peer(myId);
+            
+            peer.on('open', (id) => {
+                showLobby(code);
+                document.getElementById('lobby-title').innerText = "방장 대기실";
+                document.getElementById('btn-start-game').style.display = 'block';
+                document.getElementById('lobby-msg').style.display = 'none';
+                
+                gameState.players.push({ id: myId, name: myName, tiles: [], drawnTileId: null, isOut: false, connId: 'host' });
+                updateLobbyUI();
+            });
+            
+            peer.on('connection', (conn) => {
+                conn.on('data', (data) => handleClientMessage(conn, data));
+                clientConnections[conn.peer] = conn;
+            });
+        }
+
+        // --- Host Timeout Loop (Nagging System) ---
+        setInterval(() => {
+            if (!isHost || gameState.status !== 'playing') return;
+            if (gameState.turnStartTime && !gameState.nagged) {
+                // 15초(15000ms)가 지나면 호통치기
+                if (Date.now() - gameState.turnStartTime > 15000) {
+                    gameState.nagged = true;
+                    hostBroadcast(null, "빵 다 타겠다, 빨리 해!");
+                }
+            }
+        }, 1000);
+
+        // --- 2. Client Functions ---
+        function joinRoom() {
+            myName = document.getElementById('player-name').value.trim();
+            const code = document.getElementById('join-code').value.trim();
+            if(!myName || !code) { alert("이름을 선택하고 코드를 입력해주세요."); return; }
+            
+            // 스마트폰의 오디오 및 TTS 권한 잠금 해제
+            playSound('click');
+            speakVoice('');
+
+            isHost = false;
+            myId = PEER_PREFIX + Math.random().toString(36).substr(2, 9);
+            const hostId = PEER_PREFIX + code;
+            
+            document.getElementById('menu-msg').innerHTML = `<div class="loader"></div> 방에 접속하는 중...`;
+            peer = new Peer(myId);
+            
+            peer.on('open', (id) => {
+                hostConnection = peer.connect(hostId);
+                
+                hostConnection.on('open', () => {
+                    hostConnection.send({ type: 'JOIN', name: myName });
+                    showLobby(code);
+                });
+                
+                hostConnection.on('data', (data) => {
+                    if (data.type === 'SYNC') {
+                        gameState = data.state;
+                        if(data.sound) playSound(data.sound);
+                        if(data.speech) speakVoice(data.speech);
+                        
+                        if (gameState.status === 'lobby') updateLobbyUI();
+                        else if (gameState.status === 'playing' || gameState.status === 'ended') renderGame();
+                    }
+                });
+                
+                hostConnection.on('close', () => { alert("방장과의 연결이 끊어졌습니다."); location.reload(); });
+            });
+        }
+
+        function showLobby(code) {
+            document.getElementById('screen-menu').classList.remove('active');
+            document.getElementById('screen-lobby').classList.add('active');
+            document.getElementById('display-room-code').innerText = code;
+        }
+
+        function updateLobbyUI() {
+            const list = document.getElementById('lobby-players');
+            list.innerHTML = gameState.players.map(p => `
+                <div class="player-item">
+                    <span style="font-weight:bold; font-size:1.1rem;">${p.name}</span>
+                    <span style="color:${p.id === myId ? '#27ae60' : '#7f8c8d'}">${p.id === myId ? '(나)' : '준비완료'}</span>
+                </div>
+            `).join('');
+            
+            if (isHost) document.getElementById('btn-start-game').disabled = gameState.players.length < 2;
+        }
+
+        // --- Host Logic Engine ---
+        function handleClientMessage(conn, data) {
+            if (!isHost) return;
+            if (data.type === 'JOIN') {
+                if(gameState.status !== 'lobby' || gameState.players.length >= 4) return;
+                gameState.players.push({ id: conn.peer, name: data.name, tiles: [], drawnTileId: null, isOut: false, connId: conn.peer });
+                hostBroadcast();
+            } else if (data.type === 'GUESS' && gameState.status === 'playing') {
+                processGuess(conn.peer, data.targetId, data.targetTileId, data.guessVal);
+            } else if (data.type === 'PASS' && gameState.status === 'playing') {
+                processPass(conn.peer);
+            }
+        }
+
+        function hostBroadcast(soundStr = null, speechStr = null) {
+            if (!isHost) return;
+            const syncData = { type: 'SYNC', state: gameState, sound: soundStr, speech: speechStr };
+            
+            gameState = syncData.state;
+            if(soundStr) playSound(soundStr);
+            if(speechStr) speakVoice(speechStr);
+            
+            if (gameState.status === 'lobby') updateLobbyUI();
+            else renderGame();
+            
+            for (let id in clientConnections) {
+                if (clientConnections[id] && clientConnections[id].open) {
+                    clientConnections[id].send(syncData);
+                }
+            }
+        }
+
+        function hostStartGame() {
+            if(!isHost) return;
+            gameState.deck = [];
+            for (let i = 0; i <= 11; i++) {
+                gameState.deck.push({ id: `b${i}`, value: i, color: 'black', isRevealed: false });
+                gameState.deck.push({ id: `w${i}`, value: i, color: 'white', isRevealed: false });
+            }
+            for (let i = gameState.deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [gameState.deck[i], gameState.deck[j]] = [gameState.deck[j], gameState.deck[i]];
+            }
+            gameState.players.forEach(p => {
+                p.tiles = []; p.drawnTileId = null; p.isOut = false; p.hasGuessedRight = false;
+                for(let i=0; i<4; i++) p.tiles.push(gameState.deck.pop());
+                p.tiles.sort((a, b) => {
+                    if (a.value === b.value) return a.color === 'black' ? -1 : 1;
+                    return a.value - b.value;
+                });
+            });
+
+            gameState.status = 'playing';
+            gameState.currentTurnIndex = 0;
+            hostStartTurnPhase();
+        }
+
+        function hostStartTurnPhase() {
+            const cp = gameState.players[gameState.currentTurnIndex];
+            cp.hasGuessedRight = false;
+            
+            // 턴이 시작될 때 타이머 리셋
+            gameState.turnStartTime = Date.now();
+            gameState.nagged = false;
+            
+            if (gameState.deck.length > 0) {
+                const newTile = gameState.deck.pop();
+                cp.drawnTileId = newTile.id;
+                cp.tiles.push(newTile);
+                cp.tiles.sort((a, b) => {
+                    if (a.value === b.value) return a.color === 'black' ? -1 : 1;
+                    return a.value - b.value;
+                });
+                gameState.msg = `${cp.name}님의 턴! 타일을 가져왔습니다.`;
+            } else {
+                gameState.msg = `${cp.name}님의 턴! (가운데 남은 타일 없음)`;
+            }
+            
+            // 턴 알림 음성 송출
+            hostBroadcast('click', `${cp.name} 차례!`);
+        }
+
+        function processGuess(playerId, targetPlayerId, targetTileId, guessVal) {
+            const cp = gameState.players[gameState.currentTurnIndex];
+            if (cp.id !== playerId) return; 
+            
+            const targetPlayer = gameState.players.find(p => p.id === targetPlayerId);
+            const targetTile = targetPlayer.tiles.find(t => t.id === targetTileId);
+            
+            if (targetTile.value === guessVal) {
+                targetTile.isRevealed = true;
+                cp.hasGuessedRight = true;
+                
+                // 맞췄을 경우 타이머 다시 리셋 (추가 고민 시간을 줌)
+                gameState.turnStartTime = Date.now();
+                gameState.nagged = false;
+
+                if (targetPlayer.tiles.every(t => t.isRevealed)) {
+                    targetPlayer.isOut = true;
+                    gameState.msg = `정답! ${targetPlayer.name} 탈락! 계속하거나 턴을 마치세요.`;
+                } else {
+                    gameState.msg = `정답! 계속하거나 턴을 마치세요.`;
+                }
+                
+                cp.drawnTileId = null;
+                if(hostCheckWin()) return;
+                hostBroadcast('success', '정답!');
+                
+            } else {
+                gameState.msg = `틀렸습니다! ${cp.name}님의 타일 공개!`;
+                hostBroadcast('fail', '틀렸습니다!');
+                
+                setTimeout(() => {
+                    if (cp.drawnTileId) {
+                        const dt = cp.tiles.find(t => t.id === cp.drawnTileId);
+                        if(dt) dt.isRevealed = true;
+                    } else {
+                        const hidden = cp.tiles.filter(t => !t.isRevealed);
+                        if (hidden.length > 0) hidden[0].isRevealed = true;
+                    }
+                    if (cp.tiles.every(t => t.isRevealed)) cp.isOut = true;
+                    if(hostCheckWin()) return;
+                    
+                    hostAdvanceTurn();
+                }, 1500);
+            }
+        }
+
+        function processPass(playerId) {
+            const cp = gameState.players[gameState.currentTurnIndex];
+            if (cp.id !== playerId || !cp.hasGuessedRight) return;
+            cp.drawnTileId = null;
+            hostAdvanceTurn();
+        }
+
+        function hostAdvanceTurn() {
+            do {
+                gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.players.length;
+            } while (gameState.players[gameState.currentTurnIndex].isOut);
+            hostStartTurnPhase();
+        }
+
+        function hostCheckWin() {
+            const active = gameState.players.filter(p => !p.isOut);
+            if (active.length === 1) {
+                gameState.status = 'ended';
+                gameState.msg = `🎉 게임 종료! ${active[0].name}님의 승리! 🎉`;
+                hostBroadcast('win', `${active[0].name} 승리!`);
+                return true;
+            }
+            return false;
+        }
+
+        // --- Client Interaction / UI Rendering ---
+        function sendGuess(val) {
+            closeModal();
+            if (isHost) processGuess(myId, targetGuess.playerId, targetGuess.tileId, val);
+            else hostConnection.send({ type: 'GUESS', targetId: targetGuess.playerId, targetTileId: targetGuess.tileId, guessVal: val });
+        }
+
+        function sendPassTurn() {
+            if (isHost) processPass(myId);
+            else hostConnection.send({ type: 'PASS' });
+            document.getElementById('controls').style.display = 'none';
+        }
+
+        function renderGame() {
+            document.getElementById('screen-lobby').classList.remove('active');
+            document.getElementById('screen-game').classList.add('active');
+            
+            const cp = gameState.players[gameState.currentTurnIndex];
+            const isMyTurn = (cp.id === myId && gameState.status === 'playing');
+            
+            document.getElementById('game-status').innerText = gameState.msg;
+            
+            const me = gameState.players.find(p => p.id === myId);
+            if (isMyTurn && me && me.hasGuessedRight) {
+                document.getElementById('controls').style.display = 'flex';
+            } else {
+                document.getElementById('controls').style.display = 'none';
+            }
+
+            const oppContainer = document.getElementById('opponents-container');
+            const myContainer = document.getElementById('my-container');
+            oppContainer.innerHTML = ''; myContainer.innerHTML = '';
+
+            gameState.players.forEach(p => {
+                const isActiveTurn = (p.id === cp.id);
+                
+                if (p.id === myId) {
+                    const area = document.createElement('div');
+                    area.className = `my-area ${isActiveTurn ? 'active-turn' : ''}`;
+                    area.innerHTML = `<div class="area-header">나의 타일 (${p.name}) <span>중앙 타일: ${gameState.deck.length}개</span></div>`;
+                    const tCont = document.createElement('div'); tCont.className = 'tile-container';
+                    
+                    p.tiles.forEach(t => {
+                        const el = createTileUI(t, true); 
+                        if (t.id === p.drawnTileId) el.classList.add('new-draw');
+                        tCont.appendChild(el);
+                    });
+                    area.appendChild(tCont); myContainer.appendChild(area);
+                } else {
+                    const area = document.createElement('div');
+                    area.className = `opponent-area ${p.isOut ? 'eliminated' : ''} ${isActiveTurn ? 'active-turn' : ''}`;
+                    area.innerHTML = `<div class="area-header">${p.name} ${p.isOut ? '(탈락)' : ''}</div>`;
+                    const tCont = document.createElement('div'); tCont.className = 'tile-container';
+                    
+                    p.tiles.forEach(t => {
+                        const el = createTileUI(t, t.isRevealed);
+                        if (!p.isOut && !t.isRevealed && isMyTurn) {
+                            el.style.cursor = 'pointer';
+                            el.onclick = () => {
+                                playSound('click');
+                                targetGuess = { playerId: p.id, tileId: t.id };
+                                document.getElementById('guess-target-name').innerText = `${p.name}님의 타일 추리`;
+                                document.getElementById('guess-modal').style.display = 'flex';
+                            };
+                        } else {
+                            el.style.cursor = 'default';
+                        }
+                        tCont.appendChild(el);
+                    });
+                    area.appendChild(tCont); oppContainer.appendChild(area);
+                }
+            });
+            
+            if (gameState.status === 'ended' && !window.confettiFired) {
+                window.confettiFired = true;
+                confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#27ae60', '#f1c40f', '#e74c3c'] });
+            }
+        }
+
+        function createTileUI(tile, forceReveal) {
+            const scene = document.createElement('div'); scene.className = 'card-scene';
+            const card = document.createElement('div');
+            card.className = `card ${forceReveal || tile.isRevealed ? 'revealed' : ''}`;
+            const front = document.createElement('div');
+            front.className = `card-face card-front hint-${tile.color}`;
+            const back = document.createElement('div');
+            back.className = `card-face card-back ${tile.color}`;
+            back.innerText = tile.value;
+            card.appendChild(front); card.appendChild(back); scene.appendChild(card);
+            return scene;
+        }
+
+        function closeModal() {
+            playSound('click');
+            document.getElementById('guess-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
