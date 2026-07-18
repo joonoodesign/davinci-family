@@ -43,7 +43,6 @@
         /* Menu & Lobby */
         .box { background: rgba(255,255,255,0.05); padding: 30px; border-radius: 16px; border: 1px solid #34495e; width: 100%; max-width: 400px; text-align: center; margin-bottom: 20px; }
         
-        /* Preset Names */
         .preset-names { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
         .preset-btn { padding: 10px 15px; background: #34495e; border: 1px solid #7f8c8d; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.1s; flex: 1 1 30%; }
         .preset-btn:active { transform: scale(0.95); background: var(--accent-color); border-color: var(--accent-color); }
@@ -72,7 +71,7 @@
         .area-header { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .tile-container { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: var(--card-height); }
 
-        /* Cards & 7-Leaf Clover Design */
+        /* Cards */
         .card-scene { width: var(--card-width); height: var(--card-height); perspective: 600px; margin-bottom: 10px; }
         .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
         .card.revealed { transform: rotateY(180deg); }
@@ -88,31 +87,28 @@
         .card-back.black { background-color: #1a1a1a; color: #f1f1f1; }
         .card-back.white { background-color: #fdfdfd; color: #1a1a1a; }
         
-        /* 내 타일이 공개되었을 때의 시각적 표시 */
+        /* Public / Needs Reveal Animations */
         .card.is-public .card-back { border: 2px solid #e74c3c; }
         .card.is-public .card-back::after {
-            content: '공개됨';
-            position: absolute;
-            top: -12px;
-            right: -12px;
-            background: #e74c3c;
-            color: white;
-            font-size: 0.65rem;
-            font-weight: bold;
-            padding: 3px 6px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            content: '공개됨'; position: absolute; top: -12px; right: -12px;
+            background: #e74c3c; color: white; font-size: 0.65rem; font-weight: bold;
+            padding: 3px 6px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); border-color: #e74c3c; }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); border-color: #e74c3c; }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); border-color: #e74c3c; }
+        }
+        .needs-reveal { animation: pulse-red 1.5s infinite; }
 
         .new-draw { transform: translateY(-15px); box-shadow: 0 10px 20px rgba(39, 174, 96, 0.5); border: 2px solid #27ae60; }
         @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(4px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-6px, 0, 0); } 40%, 60% { transform: translate3d(6px, 0, 0); } }
 
         .status-text { text-align: center; font-size: 1.1rem; color: #f1c40f; font-weight: bold; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 8px; }
         
-        /* Controls */
         .controls-bar { position: fixed; bottom: 0; width: 100%; background: #1a252f; padding: 15px; display: flex; justify-content: center; gap: 15px; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); z-index: 20; }
         
-        /* Modals */
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
         .modal-box { background: #2c3e50; padding: 25px; border-radius: 12px; width: 100%; max-width: 320px; border: 1px solid var(--accent-color); text-align: center; }
         .numpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
@@ -197,7 +193,7 @@
                     window.speechSynthesis.cancel();
                     const msg = new SpeechSynthesisUtterance(text);
                     msg.lang = 'ko-KR';
-                    msg.rate = 1.2; // 약간 빠르게 설정하여 다급한 느낌 부여
+                    msg.rate = 1.2;
                     msg.volume = 1.0;
                     window.speechSynthesis.speak(msg);
                 }
@@ -253,12 +249,12 @@
             currentTurnIndex: 0,
             msg: "대기 중...",
             turnStartTime: null,
-            nagged: false
+            nagged: false,
+            mustReveal: false // 틀렸을 때 본인이 카드를 선택해야 하는 상태
         };
         
         let targetGuess = null;
 
-        // Init Numpad
         const numpad = document.getElementById('numpad');
         for (let i = 0; i <= 11; i++) {
             const btn = document.createElement('button');
@@ -270,7 +266,6 @@
             myName = document.getElementById('player-name').value.trim();
             if(!myName) { alert("이름을 입력하거나 선택해주세요."); return; }
             
-            // 스마트폰의 오디오 및 TTS 권한 잠금 해제 (첫 클릭 시 무음 실행)
             playSound('click'); 
             speakVoice(''); 
 
@@ -297,11 +292,9 @@
             });
         }
 
-        // --- Host Timeout Loop (Nagging System) ---
         setInterval(() => {
             if (!isHost || gameState.status !== 'playing') return;
             if (gameState.turnStartTime && !gameState.nagged) {
-                // 15초(15000ms)가 지나면 호통치기
                 if (Date.now() - gameState.turnStartTime > 15000) {
                     gameState.nagged = true;
                     hostBroadcast(null, "빵 다 타겠다, 빨리 해!");
@@ -315,7 +308,6 @@
             const code = document.getElementById('join-code').value.trim();
             if(!myName || !code) { alert("이름을 선택하고 코드를 입력해주세요."); return; }
             
-            // 스마트폰의 오디오 및 TTS 권한 잠금 해제
             playSound('click');
             speakVoice('');
 
@@ -378,6 +370,8 @@
                 processGuess(conn.peer, data.targetId, data.targetTileId, data.guessVal);
             } else if (data.type === 'PASS' && gameState.status === 'playing') {
                 processPass(conn.peer);
+            } else if (data.type === 'REVEAL' && gameState.status === 'playing') {
+                processReveal(conn.peer, data.tileId);
             }
         }
 
@@ -421,6 +415,7 @@
 
             gameState.status = 'playing';
             gameState.currentTurnIndex = 0;
+            gameState.mustReveal = false;
             hostStartTurnPhase();
         }
 
@@ -428,9 +423,9 @@
             const cp = gameState.players[gameState.currentTurnIndex];
             cp.hasGuessedRight = false;
             
-            // 턴이 시작될 때 타이머 리셋
             gameState.turnStartTime = Date.now();
             gameState.nagged = false;
+            gameState.mustReveal = false;
             
             if (gameState.deck.length > 0) {
                 const newTile = gameState.deck.pop();
@@ -440,18 +435,17 @@
                     if (a.value === b.value) return a.color === 'black' ? -1 : 1;
                     return a.value - b.value;
                 });
-                gameState.msg = `${cp.name}님의 턴! 타일을 가져왔습니다.`;
+                gameState.msg = `${cp.name}님의 턴! 상대방의 패를 추리하세요.`;
             } else {
-                gameState.msg = `${cp.name}님의 턴! (가운데 남은 타일 없음)`;
+                gameState.msg = `${cp.name}님의 턴! (가운데 남은 타일 없음) 추리하세요.`;
             }
             
-            // 턴 알림 음성 송출
             hostBroadcast('click', `${cp.name} 차례!`);
         }
 
         function processGuess(playerId, targetPlayerId, targetTileId, guessVal) {
             const cp = gameState.players[gameState.currentTurnIndex];
-            if (cp.id !== playerId) return; 
+            if (cp.id !== playerId || gameState.mustReveal) return; 
             
             const targetPlayer = gameState.players.find(p => p.id === targetPlayerId);
             const targetTile = targetPlayer.tiles.find(t => t.id === targetTileId);
@@ -460,7 +454,6 @@
                 targetTile.isRevealed = true;
                 cp.hasGuessedRight = true;
                 
-                // 맞췄을 경우 타이머 다시 리셋 (추가 고민 시간을 줌)
                 gameState.turnStartTime = Date.now();
                 gameState.nagged = false;
 
@@ -476,28 +469,36 @@
                 hostBroadcast('success', '정답!');
                 
             } else {
-                gameState.msg = `틀렸습니다! ${cp.name}님의 타일 공개!`;
-                hostBroadcast('fail', '틀렸습니다!');
+                // 틀렸을 경우: 자동 공개 대신 본인이 직접 공개하도록 상태 변경
+                gameState.mustReveal = true;
+                gameState.msg = `틀렸습니다! ${cp.name}님, 공개할 자신의 패를 하나 선택하세요.`;
                 
-                setTimeout(() => {
-                    if (cp.drawnTileId) {
-                        const dt = cp.tiles.find(t => t.id === cp.drawnTileId);
-                        if(dt) dt.isRevealed = true;
-                    } else {
-                        const hidden = cp.tiles.filter(t => !t.isRevealed);
-                        if (hidden.length > 0) hidden[0].isRevealed = true;
-                    }
-                    if (cp.tiles.every(t => t.isRevealed)) cp.isOut = true;
-                    if(hostCheckWin()) return;
-                    
-                    hostAdvanceTurn();
-                }, 1500);
+                gameState.turnStartTime = Date.now();
+                gameState.nagged = false;
+
+                hostBroadcast('fail', '틀렸습니다! 패를 공개하세요.');
+            }
+        }
+
+        function processReveal(playerId, tileId) {
+            const cp = gameState.players[gameState.currentTurnIndex];
+            if (cp.id !== playerId || !gameState.mustReveal) return;
+
+            const tile = cp.tiles.find(t => t.id === tileId);
+            if (tile && !tile.isRevealed) {
+                tile.isRevealed = true;
+                gameState.mustReveal = false;
+                
+                if (cp.tiles.every(t => t.isRevealed)) cp.isOut = true;
+                if(hostCheckWin()) return;
+                
+                hostAdvanceTurn();
             }
         }
 
         function processPass(playerId) {
             const cp = gameState.players[gameState.currentTurnIndex];
-            if (cp.id !== playerId || !cp.hasGuessedRight) return;
+            if (cp.id !== playerId || !cp.hasGuessedRight || gameState.mustReveal) return;
             cp.drawnTileId = null;
             hostAdvanceTurn();
         }
@@ -527,6 +528,11 @@
             else hostConnection.send({ type: 'GUESS', targetId: targetGuess.playerId, targetTileId: targetGuess.tileId, guessVal: val });
         }
 
+        function sendReveal(tileId) {
+            if (isHost) processReveal(myId, tileId);
+            else hostConnection.send({ type: 'REVEAL', tileId: tileId });
+        }
+
         function sendPassTurn() {
             if (isHost) processPass(myId);
             else hostConnection.send({ type: 'PASS' });
@@ -543,7 +549,7 @@
             document.getElementById('game-status').innerText = gameState.msg;
             
             const me = gameState.players.find(p => p.id === myId);
-            if (isMyTurn && me && me.hasGuessedRight) {
+            if (isMyTurn && me && me.hasGuessedRight && !gameState.mustReveal) {
                 document.getElementById('controls').style.display = 'flex';
             } else {
                 document.getElementById('controls').style.display = 'none';
@@ -563,9 +569,20 @@
                     const tCont = document.createElement('div'); tCont.className = 'tile-container';
                     
                     p.tiles.forEach(t => {
-                        // 내 타일을 렌더링할 때 (마지막 인자 isMine=true)
                         const el = createTileUI(t, true, true); 
                         if (t.id === p.drawnTileId) el.classList.add('new-draw');
+                        
+                        // 내가 틀려서 카드를 공개해야 할 때
+                        if (isMyTurn && gameState.mustReveal && !t.isRevealed) {
+                            const cardDiv = el.querySelector('.card');
+                            cardDiv.classList.add('needs-reveal');
+                            el.style.cursor = 'pointer';
+                            el.onclick = () => {
+                                playSound('click');
+                                sendReveal(t.id);
+                            };
+                        }
+                        
                         tCont.appendChild(el);
                     });
                     area.appendChild(tCont); myContainer.appendChild(area);
@@ -576,9 +593,10 @@
                     const tCont = document.createElement('div'); tCont.className = 'tile-container';
                     
                     p.tiles.forEach(t => {
-                        // 상대 타일을 렌더링할 때 (마지막 인자 isMine=false)
                         const el = createTileUI(t, t.isRevealed, false);
-                        if (!p.isOut && !t.isRevealed && isMyTurn) {
+                        
+                        // 패를 추리할 수 있는 상태 (내가 맞추는 상황일 때만)
+                        if (!p.isOut && !t.isRevealed && isMyTurn && !gameState.mustReveal) {
                             el.style.cursor = 'pointer';
                             el.onclick = () => {
                                 playSound('click');
@@ -605,7 +623,6 @@
             const scene = document.createElement('div'); scene.className = 'card-scene';
             const card = document.createElement('div');
             
-            // 내 타일이면서 가족들에게 '공개된(틀린)' 타일인 경우 is-public 클래스 추가
             let classStr = 'card ';
             if (forceReveal || tile.isRevealed) classStr += 'revealed ';
             if (isMine && tile.isRevealed) classStr += 'is-public ';
