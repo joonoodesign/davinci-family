@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 영어 회화 학습 & 직통 통역기</title>
+    <title>AI 영어 회화 학습 & 자동 연속 통역기</title>
     <style>
         :root { --primary: #4F46E5; --primary-hover: #4338CA; --danger: #EF4444; --danger-hover: #DC2626; --success: #10B981; --success-hover: #059669; --bg-color: #F3F4F6; --card-bg: #FFFFFF; --text-main: #1F2937; --text-muted: #6B7280; }
         body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
@@ -20,18 +20,20 @@
         input[type="number"] { padding: 10px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 15px; outline: none; }
         input[type="range"] { accent-color: var(--primary); width: 100%; }
         .controls { display: flex; gap: 10px; margin-top: 20px; }
-        button { flex: 1; padding: 14px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s; color: white; }
+        button { flex: 1; padding: 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s; color: white; }
         button.start { background-color: var(--primary); }
         button.start:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
-        button.stop { background-color: var(--danger); }
+        button.stop { background-color: var(--danger); flex: 0.4; }
         button.stop:hover { background-color: var(--danger-hover); }
-        button.trans-start { background-color: var(--danger); animation: none; }
-        button.trans-start.recording { animation: pulseBg 1.5s infinite; }
-        button.trans-stop { background-color: var(--success); }
-        button:disabled { background-color: #9CA3AF; cursor: not-allowed; transform: none; animation: none; }
+        
+        button.trans-start { background-color: var(--primary); box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2); }
+        button.trans-start:hover { background-color: var(--primary-hover); }
+        button.trans-stop { background-color: var(--danger); animation: pulseBg 2s infinite; }
+        
+        button:disabled { background-color: #9CA3AF; cursor: not-allowed; transform: none; animation: none; box-shadow: none; }
         
         .tab-buttons { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
-        .tab-btn { background: #E5E7EB; color: #4B5563; padding: 10px 16px; font-size: 14px; border-radius: 8px; flex: unset; width: auto; white-space: nowrap; border: none; font-weight: bold; cursor: pointer;}
+        .tab-btn { background: #E5E7EB; color: #4B5563; padding: 12px 16px; font-size: 14px; border-radius: 8px; flex: unset; width: auto; white-space: nowrap; border: none; font-weight: 700; cursor: pointer;}
         .tab-btn.active { background: var(--primary); color: white; }
 
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; border: 1px solid #E5E7EB; margin-top: 20px; }
@@ -46,7 +48,7 @@
         .msg-user { background: #EEF2FF; color: #1F2937; align-self: flex-end; border-bottom-right-radius: 4px; }
         .msg-ai { background: #10B981; color: white; align-self: flex-start; border-bottom-left-radius: 4px; }
         .msg-error { background: #FEE2E2; color: #991B1B; align-self: center; font-size: 13px; text-align: center; border-radius: 8px; }
-        .status-bar { margin-top: 15px; padding: 12px; border-radius: 8px; background-color: #EEF2FF; color: var(--primary); text-align: center; font-weight: 600; display: none; }
+        .status-bar { margin-top: 15px; padding: 12px; border-radius: 8px; background-color: #EEF2FF; color: var(--primary); text-align: center; font-weight: 700; display: none; font-size: 15px; }
         
         @keyframes pulseBg { 0% { background-color: var(--danger); } 50% { background-color: #B91C1C; transform: scale(0.98); } 100% { background-color: var(--danger); } }
     </style>
@@ -54,7 +56,7 @@
 <body>
 
 <div class="container">
-    <h2>✨ AI 회화 학습 & 직통 통역기</h2>
+    <h2>✨ AI 회화 학습 & 자동 연속 통역기</h2>
 
     <div class="section" id="voice-settings">
         <div class="section-title">⚙️ 시스템 기본 설정</div>
@@ -84,7 +86,7 @@
         <div class="tab-buttons">
             <button class="tab-btn active" id="tab-ai" onclick="switchTab('ai')">📝 AI 문장 생성</button>
             <button class="tab-btn" id="tab-custom" onclick="switchTab('custom')">📋 내 문장 학습</button>
-            <button class="tab-btn" id="tab-translate" onclick="switchTab('translate')">🎙️ AI 직통 통역기</button>
+            <button class="tab-btn" id="tab-translate" onclick="switchTab('translate')">🤝 자동 연속 통역기</button>
         </div>
 
         <div id="panel-ai">
@@ -119,17 +121,17 @@
             </div>
         </div>
 
+        <!-- 🔥 완전히 새로워진 "자동 연속 티키타카" 모드 -->
         <div id="panel-translate" style="display: none;">
-            <div style="background: #ECFDF5; padding: 12px; border-radius: 8px; border: 1px solid #A7F3D0; text-align: center; color: #065F46; font-weight: bold; margin-bottom: 15px;">
-                🚀 제미나이가 내 목소리를 직접 듣고 이해합니다!<br>
-                <span style="font-size: 13px; font-weight: normal; color: #047857;">💡 팁: 말을 다 마치고 <strong>마음속으로 1초 센 뒤에</strong> 완료를 누르세요.</span>
+            <div style="background: #ECFDF5; padding: 15px; border-radius: 8px; border: 1px solid #A7F3D0; text-align: center; color: #065F46; font-weight: bold; margin-bottom: 15px;">
+                🚀 버튼 조작 없는 무한 티키타카 모드<br>
+                <span style="font-size: 13px; font-weight: normal; color: #047857; display:block; margin-top:5px;">시작 버튼을 누르고 스마트폰을 테이블에 내려놓으세요.<br>AI가 알아서 듣고, 통역하고, 다시 다음 사람의 말을 듣습니다!</span>
             </div>
             
             <div class="chat-box" id="chat-box"></div>
 
             <div class="controls">
-                <button id="btn-record-start" class="trans-start" onclick="startRecording()">🔴 말하기 시작</button>
-                <button id="btn-record-stop" class="trans-stop" onclick="stopRecording()" disabled>⏹️ 완료 (번역하기)</button>
+                <button id="btn-continuous-toggle" class="trans-start" onclick="toggleContinuousConversation()">🤝 연속 대화 시작 (버튼 조작 없음)</button>
             </div>
         </div>
     </div>
@@ -211,6 +213,9 @@
         document.getElementById('panel-translate').style.display = mode === 'translate' ? 'block' : 'none';
 
         stopStudyProcess();
+        
+        // 탭 이동 시 통역기도 강제 종료
+        if (isConversing) toggleContinuousConversation();
         document.getElementById('result-box').style.display = 'none'; 
     }
 
@@ -220,6 +225,7 @@
         statusBar.style.display = show ? 'block' : 'none';
     }
 
+    // 💡 스마트폰에서 가끔 소리가 멈추는 버그를 막기 위한 '강철 타이머'가 추가된 음성 낭독 함수
     function speakText(text, lang, speed) {
         return new Promise((resolve) => {
             const utterThis = new SpeechSynthesisUtterance(text);
@@ -229,8 +235,20 @@
             const voice = allVoices.find(v => v.name === voiceName);
             if (voice) utterThis.voice = voice;
             utterThis.rate = speed;
-            utterThis.onend = () => resolve();
-            utterThis.onerror = () => resolve();
+            
+            let isResolved = false;
+            
+            // 만약 폰이 버그가 걸려서 재생 완료 신호를 안 주더라도, 글자 수에 비례해서 시간이 지나면 강제로 다음으로 넘어가게 만듦
+            const fallbackTimer = setTimeout(() => {
+                if(!isResolved) { isResolved = true; resolve(); }
+            }, text.length * 200 + 3000); 
+            
+            utterThis.onend = () => {
+                if(!isResolved) { clearTimeout(fallbackTimer); isResolved = true; resolve(); }
+            };
+            utterThis.onerror = () => {
+                if(!isResolved) { clearTimeout(fallbackTimer); isResolved = true; resolve(); }
+            };
             synth.speak(utterThis);
         });
     }
@@ -317,8 +335,13 @@
         updateStatus("정지됨");
     }
 
-    // ================= 🚀 방탄 필터가 적용된 직통 오디오 통역기 =================
-    let mediaRecorder;
+    // ================= 🚀 버튼 조작 없는 무한 연속 대화 (오디오 센서) 로직 =================
+    let isConversing = false;
+    let stream = null;
+    let audioCtx = null;
+    let analyser = null;
+    let checkInterval = null;
+    let mediaRecorder = null;
     let audioChunks = [];
 
     function addChatMessage(text, type) {
@@ -346,112 +369,192 @@
         });
     }
 
-    async function startRecording() {
+    async function toggleContinuousConversation() {
         const apiKey = getApiKey();
         if(!apiKey) return;
-        
+
+        const btn = document.getElementById('btn-continuous-toggle');
+
+        // 대화 정지 버튼을 눌렀을 때
+        if (isConversing) {
+            isConversing = false;
+            if (checkInterval) clearInterval(checkInterval);
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            btn.innerHTML = '🤝 연속 대화 시작 (버튼 조작 없음)';
+            btn.className = 'trans-start';
+            updateStatus('⏹️ 연속 대화가 완전히 종료되었습니다.');
+            return;
+        }
+
+        // 연속 대화 시작 버튼을 눌렀을 때
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            synth.cancel(); 
+            if (!stream) {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+            // 소리 감지용 센서(AudioContext) 달기
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 512;
+            }
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
             
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-
-            mediaRecorder.ondataavailable = event => {
-                if (event.data.size > 0) audioChunks.push(event.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-                stream.getTracks().forEach(track => track.stop());
-                
-                document.getElementById('btn-record-start').disabled = true;
-                document.getElementById('btn-record-stop').disabled = true;
-                updateStatus('🔄 제미나이가 회원님의 목소리를 듣고 분석 중입니다...');
-
-                try {
-                    let mimeType = mediaRecorder.mimeType || 'audio/webm';
-                    const baseMime = mimeType.split(';')[0];
-                    const audioBlob = new Blob(audioChunks, { type: mimeType });
-                    const base64Audio = await blobToBase64(audioBlob);
-                    
-                    // 💡 제미나이의 융통성을 끌어올리는 아주 강력한 프롬프트(명령)
-                    const prompt = `이 오디오는 사용자의 실제 음성입니다. 다음 지시사항을 무조건 따르세요.
-                    1. 음성이 중간에 끊겨서 "안녕하세요 어디로가" 처럼 들리더라도, 문맥을 유추하여 "안녕하세요 어디로 가십니까?" 등 완전한 문장으로 똑똑하게 교정하세요.
-                    2. 음성이 한국어면 영어로 번역하고, 영어면 한국어로 번역하세요.
-                    3. 만약 음성이 너무 짧거나 잡음만 들려서 도저히 번역할 수 없다면, original에 "말씀이 잘 안 들렸어요."라고 적어주세요.
-                    4. 어떤 상황에서도(에러가 나든 잡음이 들리든) 무조건 아래 JSON 형식만 출력해야 합니다.
-                    양식: {"original": "교정된 원래 문장", "translated_text": "최종 번역 문장", "target_lang": "en" 또는 "ko"}`;
-
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: baseMime, data: base64Audio } } ] }],
-                            generationConfig: { responseMimeType: "application/json" }
-                        })
-                    });
-
-                    const data = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error("서버에서 응답을 거절했습니다.");
-                    }
-
-                    // 💡 AI가 너무 짧은 음성에 당황해서 대답을 거부(Safety Block)했을 때의 안전장치
-                    let textRes = "";
-                    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                        textRes = data.candidates[0].content.parts[0].text;
-                    } else {
-                        textRes = '{"original": "말씀이 너무 짧게 녹음되었습니다.", "translated_text": "The audio was too short. Please try again.", "target_lang": "en"}';
-                    }
-
-                    let result;
-                    try {
-                        result = cleanJsonResponse(textRes);
-                    } catch(parseError) {
-                        // 만약 AI가 JSON 양식을 어겼을 때의 최후의 보루
-                        result = {
-                            original: "녹음이 비정상적으로 끊겼습니다.",
-                            translated_text: "Audio was cut off unexpectedly.",
-                            target_lang: "en"
-                        };
-                    }
-                    
-                    addChatMessage(result.original, 'user');
-                    addChatMessage(result.translated_text, 'ai');
-                    
-                    let speed = parseFloat(document.getElementById('speed-control').value);
-                    updateStatus('🔊 통역 내용 낭독 중...');
-                    await speakText(result.translated_text, result.target_lang, speed);
-                    
-                    updateStatus('✨ 통역 완료! 언제든 다시 말하기 버튼을 누르세요.');
-
-                } catch(error) {
-                    console.error(error);
-                    addChatMessage(`⚠️ 에러가 났지만 안전하게 복구했습니다. 다시 말씀해 보세요!`, 'error');
-                    updateStatus('⚠️ 잠시 통신이 불안정했습니다.');
-                } finally {
-                    document.getElementById('btn-record-start').disabled = false;
-                    document.getElementById('btn-record-stop').disabled = true;
-                    document.getElementById('btn-record-start').classList.remove('recording');
-                }
-            };
-
-            mediaRecorder.start();
-            document.getElementById('btn-record-start').classList.add('recording');
-            document.getElementById('btn-record-start').disabled = true;
-            document.getElementById('btn-record-stop').disabled = false;
-            updateStatus('🔴 녹음 중... 다 말씀하시고 속으로 1초 센 뒤 완료를 누르세요!');
+            isConversing = true;
+            btn.innerHTML = '⏹️ 대화 완전히 종료하기 (빨간 버튼)';
+            btn.className = 'trans-stop';
             
-        } catch(error) {
-            alert("마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해주세요.");
+            document.getElementById('chat-box').innerHTML = '';
+            addChatMessage("✅ 연속 대화 모드가 시작되었습니다. 폰을 놔두고 편하게 말씀하세요!", 'ai');
+            
+            // 무한 루프 시작
+            runConversationTurn(apiKey);
+            
+        } catch (e) {
+            alert("마이크 권한을 허용해주세요.");
         }
     }
 
-    function stopRecording() {
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-            mediaRecorder.stop(); 
-        }
+    function runConversationTurn(apiKey) {
+        if (!isConversing) return;
+
+        audioChunks = [];
+        
+        // 브라우저마다 지원하는 녹음 파일 형식이 다름 (안전 장치)
+        let mimeType = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+        else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+        
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        
+        let hasSpoken = false;
+        let silenceTicks = 0;
+        let idleTicks = 0;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        updateStatus('🟢 언제든 말씀하세요... (마이크 감지 중)');
+
+        // 0.1초마다 마이크에 소리가 들어오는지 체크하는 센서 가동
+        checkInterval = setInterval(() => {
+            if (!isConversing) { clearInterval(checkInterval); return; }
+
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
+            let volume = sum / bufferLength;
+
+            // 소리가 기준치(12)를 넘으면 "사람이 말을 시작했다!" 라고 판단
+            if (volume > 12) {
+                if (!hasSpoken) {
+                    hasSpoken = true;
+                    updateStatus('🗣️ 회원님의 목소리가 감지되었습니다! 편하게 쭉 말씀하세요.');
+                }
+                silenceTicks = 0; // 말이 계속 이어지면 침묵 타이머를 0으로 리셋
+            } else {
+                if (hasSpoken) {
+                    silenceTicks++;
+                    // 말이 끝난 후 약 2.5초 동안 조용하면, "말이 완전히 끝났다!" 판단하고 녹음 종료
+                    if (silenceTicks >= 25) { 
+                        clearInterval(checkInterval);
+                        if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+                    }
+                } else {
+                    idleTicks++;
+                    // 아무도 15초 동안 말을 안 하면, 빈 파일을 버리고 조용히 다시 듣기 시작 (에러 방지)
+                    if (idleTicks >= 150) { 
+                        clearInterval(checkInterval);
+                        if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+                    }
+                }
+            }
+        }, 100);
+
+        // 녹음이 완전히 끝났을 때 제미나이에게 보내는 작업
+        mediaRecorder.onstop = async () => {
+            if (!isConversing) return;
+            
+            // 만약 아무도 말을 안 해서 끝난 거라면, 제미나이에게 보내지 않고 조용히 다시 듣기 시작
+            if (!hasSpoken) {
+                runConversationTurn(apiKey);
+                return;
+            }
+
+            updateStatus('🔄 제미나이가 문맥을 파악하며 통역 중입니다...');
+            
+            try {
+                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || mimeType });
+                const base64Audio = await blobToBase64(audioBlob);
+                
+                // 💡 제미나이에게 내리는 완벽한 프롬프트 (기침 소리 무시 필터 장착)
+                const prompt = `이 오디오는 사용자와 외국인의 실제 대화 음성입니다. 다음 지시사항을 무조건 따르세요.
+                1. 사용자의 음성을 듣고, 문맥을 유추하여 완전한 문장으로 받아쓰기 하세요.
+                2. 음성이 한국어면 영어로, 영어면 한국어로 번역하세요.
+                3. 만약 기침소리, 물건 떨어지는 소리 등 의미 없는 소음만 들려서 번역할 문장이 없다면, original과 translated_text의 값을 모두 "IGNORE"라고 적어주세요.
+                4. 결과는 무조건 아래 JSON 형식으로만 출력하세요.
+                양식: {"original": "교정된 원래 문장", "translated_text": "최종 번역 문장", "target_lang": "en" 또는 "ko"}`;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: (mediaRecorder.mimeType || mimeType).split(';')[0], data: base64Audio } } ] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error("서버 응답 오류");
+
+                let textRes = "";
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    textRes = data.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error("음성을 인식할 수 없습니다.");
+                }
+
+                let result;
+                try {
+                    result = cleanJsonResponse(textRes);
+                } catch(e) {
+                    result = { original: "IGNORE", translated_text: "IGNORE", target_lang: "en" };
+                }
+                
+                // 💡 기침소리나 헛기침 소리였으면 화면에 띄우지 않고 조용히 다시 듣기 시작!
+                if (result.original === "IGNORE" || result.translated_text === "IGNORE") {
+                    if (isConversing) runConversationTurn(apiKey);
+                    return;
+                }
+                
+                addChatMessage(result.original, 'user');
+                addChatMessage(result.translated_text, 'ai');
+                
+                let speed = parseFloat(document.getElementById('speed-control').value);
+                updateStatus('🔊 외국인(또는 한국인)에게 통역 내용을 낭독 중입니다...');
+                
+                // 폰이 소리 내어 읽어주기 (이 동안은 마이크가 꺼짐)
+                await speakText(result.translated_text, result.target_lang, speed);
+                
+                // 🌟 통역 낭독이 끝나면 0.5초 뒤에 자동으로 다음 턴(듣기) 시작! 🌟
+                if (isConversing) {
+                    setTimeout(() => runConversationTurn(apiKey), 500); 
+                }
+                
+            } catch(error) {
+                console.error(error);
+                updateStatus('⚠️ 통신 불량으로 놓쳤습니다. 다시 듣기를 시작합니다.');
+                // 에러가 나도 앱이 죽지 않고 2초 뒤에 불사조처럼 다시 듣기 시작함
+                if (isConversing) {
+                    setTimeout(() => runConversationTurn(apiKey), 2000); 
+                }
+            }
+        };
+
+        // 센서와 녹음기 동시 작동 시작
+        mediaRecorder.start();
     }
 </script>
 
